@@ -1,0 +1,43 @@
+@isTest
+private  class GazzeteNoticeSyncReset_Test {
+    @testSetup static void setup() {
+        // Create common test accounts
+        List<Account> accountList = (List<Account>)TestFactory.createNewSobject('Account', 1);
+        List<Account> formatedAccountList = new List<Account>();
+        for(Account acc : accountList){
+            acc.AccountNumber = TestFactory.generateRandomString(40);
+            acc.Country_of_Incorporation__c = 'GB';
+            formatedAccountList.add(acc);
+        }
+
+        insert formatedAccountList;
+        
+        // Create common test Company Social Media records
+        List<Gazettenotice__c> cmpMediaList = (List<Gazettenotice__c>)TestFactory.createNewSobject('Gazettenotice__c', 10);
+        List<Gazettenotice__c> formatedCmpMediaList = new List<Gazettenotice__c>();
+        for(Gazettenotice__c cmpMedia : cmpMediaList){
+            cmpMedia.CompanyId__c = formatedAccountList[0].Id;
+            cmpMedia.IsNeworUpdatedByExternalProvider__c = true;
+            formatedCmpMediaList.add(cmpMedia);
+        }
+
+        insert formatedCmpMediaList;
+    }
+
+    @IsTest
+    static void testBatchReset(){
+        Id batchJobId;
+        Test.startTest();
+            batchJobId = Database.executeBatch(new GazzeteNoticeSyncReset());
+        Test.stopTest();
+
+        AsyncApexJob job = [SELECT Id, Status, NumberOfErrors, 
+            JobItemsProcessed,
+            TotalJobItems, CreatedBy.Email
+            FROM AsyncApexJob
+            WHERE Id = :batchJobId];
+
+        System.assertEquals('Completed', job.Status, 'Batch to test successful reset, failed');
+        
+    }
+}
